@@ -212,7 +212,7 @@ sequenceDiagram
     participant DB as CloudNativePG
     participant L as Lease (DynamoDB)
     Op->>G: terraform apply (green, 1.36) + cm register
-    Note over G: Argo CD deploys everything;<br/>DB starts as replica; singletons paused
+    Note over G: Argo CD deploys everything, DB starts as replica, singletons paused
     Op->>WF: argo submit clustermotion-migrate
     WF->>WF: preflight + plan
     WF->>ALB: smoke tests via X-CM-Target: green
