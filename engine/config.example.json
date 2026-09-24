@@ -1,0 +1,63 @@
+{
+  "project": "clustermotion",
+  "region": "us-east-1",
+  "clusters": { "blue": "cm-blue", "green": "cm-green" },
+  "workload_namespace": "shop",
+  "alb": {
+    "dns_name": "clustermotion-123456789.us-east-1.elb.amazonaws.com",
+    "arn_suffix": "app/clustermotion/0123456789abcdef",
+    "logs_bucket": "clustermotion-alb-logs-111122223333",
+    "logs_prefix": "alb",
+    "security_group_id": "sg-0123456789abcdef0"
+  },
+  "services": {
+    "catalog": {
+      "rule_arn": "arn:aws:elasticloadbalancing:us-east-1:111122223333:listener-rule/app/clustermotion/0123/4567/89ab",
+      "health_path": "/api/catalog/healthz",
+      "smoke_paths": ["/api/catalog/products", "/api/catalog/products/sku-100"],
+      "shadow_prefixes": ["/api/catalog/"],
+      "target_groups": {
+        "blue":  { "arn": "arn:aws:elasticloadbalancing:us-east-1:111122223333:targetgroup/cm-catalog-blue/aaaa",  "arn_suffix": "targetgroup/cm-catalog-blue/aaaa" },
+        "green": { "arn": "arn:aws:elasticloadbalancing:us-east-1:111122223333:targetgroup/cm-catalog-green/bbbb", "arn_suffix": "targetgroup/cm-catalog-green/bbbb" }
+      }
+    },
+    "orders": {
+      "rule_arn": "arn:aws:elasticloadbalancing:us-east-1:111122223333:listener-rule/app/clustermotion/0123/4567/cdef",
+      "health_path": "/api/orders/healthz",
+      "smoke_paths": ["/api/orders/readyz"],
+      "shadow_prefixes": ["/api/orders/"],
+      "target_groups": {
+        "blue":  { "arn": "arn:aws:elasticloadbalancing:us-east-1:111122223333:targetgroup/cm-orders-blue/cccc",  "arn_suffix": "targetgroup/cm-orders-blue/cccc" },
+        "green": { "arn": "arn:aws:elasticloadbalancing:us-east-1:111122223333:targetgroup/cm-orders-green/dddd", "arn_suffix": "targetgroup/cm-orders-green/dddd" }
+      }
+    }
+  },
+  "shift_order": ["catalog", "orders"],
+  "lease": { "table": "clustermotion-leases", "lease_id": "singletons", "ttl_seconds": 30 },
+  "runs_table": "clustermotion-runs",
+  "artifacts_bucket": "clustermotion-artifacts-111122223333",
+  "db": {
+    "zone_id": "Z0123456789ABCDEFGHIJ",
+    "record": "db.clustermotion.internal",
+    "namespace": "shop",
+    "cluster_prefix": "orders-db",
+    "lb_service": "orders-db-lb",
+    "secret_id": "clustermotion/orders-db",
+    "name": "shop"
+  },
+  "gitops": {
+    "argocd_namespace": "argocd",
+    "cluster_annotations": {
+      "clustermotion.io/aws-region": "us-east-1",
+      "clustermotion.io/vpc-id": "vpc-0123456789abcdef0",
+      "clustermotion.io/vpc-cidr": "10.0.0.0/16",
+      "clustermotion.io/image-registry": "111122223333.dkr.ecr.us-east-1.amazonaws.com",
+      "clustermotion.io/queue-url": "https://sqs.us-east-1.amazonaws.com/111122223333/clustermotion-orders",
+      "clustermotion.io/wal-bucket": "clustermotion-wal-111122223333",
+      "clustermotion.io/lease-table": "clustermotion-leases",
+      "clustermotion.io/db-host": "db.clustermotion.internal",
+      "clustermotion.io/alb-sg": "sg-0123456789abcdef0"
+    }
+  },
+  "slo": { "max_5xx_ratio": 0.01, "max_p95_ratio": 1.5, "min_p95_seconds": 0.3, "min_requests": 20 }
+}

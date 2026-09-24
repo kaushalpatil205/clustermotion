@@ -1,0 +1,46 @@
+# Identity for workflow pods. AWS permissions come from the management
+# node's instance profile (IMDS hop limit 2), Kubernetes permissions below.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: clustermotion-engine
+  namespace: argo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: clustermotion-engine-executor
+  namespace: argo
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [workflowtaskresults]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: clustermotion-engine-executor
+  namespace: argo
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: clustermotion-engine-executor}
+subjects: [{kind: ServiceAccount, name: clustermotion-engine, namespace: argo}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: clustermotion-engine
+  namespace: argocd
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [applications]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list, create, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: clustermotion-engine
+  namespace: argocd
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: clustermotion-engine}
+subjects: [{kind: ServiceAccount, name: clustermotion-engine, namespace: argo}]

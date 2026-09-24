@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Service tests
+        run: |
+          pip install pytest httpx
+          for svc in catalog orders fulfillment; do
+            pip install -r services/$svc/requirements.txt
+            pytest services/$svc -q
+          done
+
+      - name: Engine tests
+        run: |
+          pip install -e 'engine/.[test]'
+          pytest engine -q
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310  # v5.0.1
+
+      - name: Helm lint
+        run: helm lint gitops/charts/shop
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e  # v4.0.1
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive infra/terraform
+
+      - name: Docs ↔ code sync
+        run: python3 scripts/docs_to_code.py --check
+
+  images:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.ECR_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd  # v2.1.7
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
+
+      - name: Build & push images
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7.4.0
+        strategy:
+          matrix:
+            include:
+              - name: catalog
+                context: services/catalog
+              - name: orders
+                context: services/orders
+              - name: fulfillment
+                context: services/fulfillment
+              - name: engine
+                context: engine
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/clustermotion/${{ matrix.name }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/clustermotion/${{ matrix.name }}:latest
+
+      - name: Update image tag in GitOps
+        run: |
+          sed -i "s/tag: .*/tag: ${{ github.sha }}/" gitops/charts/shop/values.yaml
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add gitops/charts/shop/values.yaml
+          git commit -m "chore: bump image tag to ${{ github.sha }} [skip ci]" || true
+          git push

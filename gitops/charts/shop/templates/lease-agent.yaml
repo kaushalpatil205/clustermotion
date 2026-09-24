@@ -1,0 +1,60 @@
+# One agent per cluster. Recreate strategy: never two agents in one cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lease-agent
+  labels:
+    app.kubernetes.io/part-of: clustermotion
+    clustermotion.io/color: {{ .Values.color }}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: lease-agent}
+  template:
+    metadata:
+      labels:
+        app: lease-agent
+        app.kubernetes.io/part-of: clustermotion
+    spec:
+      serviceAccountName: lease-agent
+      containers:
+        - name: agent
+          image: {{ include "shop.image" (dict "root" . "name" "engine") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: [lease, agent]
+          env:
+            {{- include "shop.awsEnv" . | nindent 12 }}
+            - {name: LEASE_TABLE, value: {{ .Values.leaseTable | quote }}}
+            - {name: WATCH_NAMESPACE, value: {{ .Release.Namespace | quote }}}
+          resources:
+            requests: {cpu: 20m, memory: 96Mi}
+            limits: {memory: 256Mi}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: lease-agent
+rules:
+  - apiGroups: [batch]
+    resources: [cronjobs]
+    verbs: [get, list, patch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list]
+  - apiGroups: [keda.sh]
+    resources: [scaledobjects]
+    verbs: [get, list, patch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: lease-agent
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: lease-agent}
+subjects: [{kind: ServiceAccount, name: lease-agent}]

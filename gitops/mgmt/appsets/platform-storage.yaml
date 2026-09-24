@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: storage
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clustermotion.io/workload: "true"
+  template:
+    metadata:
+      name: 'storage-{{ index .metadata.labels "clustermotion.io/color" }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/YOUR_GITHUB_USER/clustermotion.git
+        targetRevision: main
+        path: gitops/platform/storage
+      destination:
+        server: '{{ .server }}'
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}

@@ -1,0 +1,4 @@
+region            = "us-east-1"
+admin_cidr        = "203.0.113.10/32"            # curl -s https://checkip.amazonaws.com
+ssh_public_key    = "ssh-ed25519 AAAA... you@laptop"
+github_repository = "your-github-user/clustermotion"

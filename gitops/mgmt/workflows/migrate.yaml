@@ -1,0 +1,83 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: clustermotion-migrate
+  namespace: argo
+spec:
+  serviceAccountName: clustermotion-engine
+  entrypoint: migrate
+  onExit: finalize
+  arguments:
+    parameters:
+      - name: from
+        value: blue
+      - name: to
+        value: green
+      - name: image
+        value: REPLACE_WITH_ECR_REGISTRY/clustermotion/engine:latest
+      - name: steps
+        value: "5,25,50,100"
+      - name: hold
+        value: "120"
+      - name: approve_db
+        value: manual   # manual | auto
+  volumes:
+    - name: config
+      configMap:
+        name: clustermotion-config
+  templates:
+    - name: migrate
+      steps:
+        - - name: preflight
+            template: cm
+            arguments: {parameters: [{name: args, value: "preflight --from {{workflow.parameters.from}} --to {{workflow.parameters.to}}"}]}
+        - - name: plan
+            template: cm
+            arguments: {parameters: [{name: args, value: "plan --from-cluster {{workflow.parameters.from}}"}]}
+        - - name: smoke-target
+            template: cm
+            arguments: {parameters: [{name: args, value: "smoke --color {{workflow.parameters.to}}"}]}
+        - - name: shadow-replay
+            template: cm
+            arguments: {parameters: [{name: args, value: "shadow --from {{workflow.parameters.from}} --to {{workflow.parameters.to}}"}]}
+        - - name: shift-catalog
+            template: cm
+            arguments: {parameters: [{name: args, value: "traffic shift --service catalog --to {{workflow.parameters.to}} --steps {{workflow.parameters.steps}} --hold {{workflow.parameters.hold}}"}]}
+        - - name: shift-orders
+            template: cm
+            arguments: {parameters: [{name: args, value: "traffic shift --service orders --to {{workflow.parameters.to}} --steps {{workflow.parameters.steps}} --hold {{workflow.parameters.hold}}"}]}
+        - - name: approve-db-switchover
+            template: approval
+            when: "'{{workflow.parameters.approve_db}}' == 'manual'"
+        - - name: db-switchover
+            template: cm
+            arguments: {parameters: [{name: args, value: "db switchover --to {{workflow.parameters.to}}"}]}
+        - - name: lease-handoff
+            template: cm
+            arguments: {parameters: [{name: args, value: "lease handoff --to {{workflow.parameters.to}}"}]}
+        - - name: post-checks
+            template: cm
+            arguments: {parameters: [{name: args, value: "smoke --color {{workflow.parameters.to}}"}]}
+
+    - name: cm
+      inputs:
+        parameters:
+          - name: args
+      container:
+        image: "{{workflow.parameters.image}}"
+        command: [sh, -c]
+        args: ["cm {{inputs.parameters.args}}"]
+        env:
+          - {name: CM_CONFIG, value: /etc/clustermotion/config.json}
+          - {name: CM_RUN_ID, value: "{{workflow.name}}"}
+        volumeMounts:
+          - {name: config, mountPath: /etc/clustermotion}
+
+    - name: approval
+      suspend: {}
+
+    - name: finalize
+      steps:
+        - - name: report
+            template: cm
+            arguments: {parameters: [{name: args, value: "report --status {{workflow.status}}"}]}

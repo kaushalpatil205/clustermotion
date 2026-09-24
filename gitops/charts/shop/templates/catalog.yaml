@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+  labels:
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.catalog.replicas }}
+  selector:
+    matchLabels: {app: catalog}
+  template:
+    metadata:
+      labels:
+        app: catalog
+        {{- include "shop.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: catalog
+          image: {{ include "shop.image" (dict "root" . "name" "catalog") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{containerPort: 8000, name: http}]
+          env:
+            {{- include "shop.awsEnv" . | nindent 12 }}
+            - {name: FAULT_ERROR_RATE, value: {{ .Values.faults.catalogErrorRate | quote }}}
+            - {name: FAULT_PRICE_BUG, value: {{ .Values.faults.catalogPriceBug | quote }}}
+          readinessProbe:
+            httpGet: {path: /api/catalog/healthz, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /api/catalog/healthz, port: http}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog
+  labels:
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  selector: {app: catalog}
+  ports: [{port: 80, targetPort: http, name: http}]
+---
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: catalog
+  labels:
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  serviceRef: {name: catalog, port: 80}
+  targetGroupARN: {{ .Values.targetGroups.catalog }}
+  targetType: ip
+  networking:
+    ingress:
+      - from:
+          - securityGroup: {groupID: {{ .Values.albSecurityGroupId }}}
+        ports:
+          - {port: 8000, protocol: TCP}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: catalog
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: catalog}

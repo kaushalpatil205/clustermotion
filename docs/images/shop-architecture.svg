@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 970" width="1560" height="970" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Shop: microservices architecture migrated by ClusterMotion</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3d3d3a"/>
+    </marker>
+    <marker id="arrow-ctl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#534AB7"/>
+    </marker>
+    <style>
+      .t  { font-size: 15px; font-weight: 700; fill: #1f1f1d; }
+      .b  { font-size: 12.5px; fill: #3d3d3a; }
+      .s  { font-size: 11.5px; fill: #5f5e5a; }
+      .lbl{ font-size: 11.5px; fill: #3d3d3a; font-weight: 600; }
+      .ctl{ font-size: 11.5px; fill: #534AB7; font-weight: 600; }
+      .flow { stroke: #3d3d3a; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .control { stroke: #534AB7; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrow-ctl); }
+    </style>
+  </defs>
+
+  <!-- background -->
+  <rect width="1560" height="970" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="30" y="42" font-size="24" font-weight="700" fill="#1f1f1d">Shop: microservices architecture</text>
+  <text x="30" y="68" class="b">The workload ClusterMotion migrates: 3 microservices, 1 CronJob and 1 PostgreSQL database. The same layout runs in the blue and the green cluster.</text>
+
+  <!-- clients -->
+  <rect x="30" y="310" width="160" height="90" rx="10" fill="#ffffff" stroke="#444441" stroke-width="1.5"/>
+  <text x="110" y="340" class="t" text-anchor="middle">Customers</text>
+  <text x="110" y="362" class="b" text-anchor="middle">k6 load generator</text>
+  <text x="110" y="382" class="s" text-anchor="middle">HTTP requests</text>
+
+  <!-- ALB -->
+  <rect x="230" y="255" width="190" height="200" rx="10" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1.5"/>
+  <text x="325" y="285" class="t" text-anchor="middle">Application</text>
+  <text x="325" y="304" class="t" text-anchor="middle">Load Balancer</text>
+  <text x="325" y="326" class="s" text-anchor="middle">shared, outside the cluster</text>
+  <text x="325" y="354" class="b" text-anchor="middle">/api/catalog/* → catalog</text>
+  <text x="325" y="376" class="b" text-anchor="middle">/api/orders* → orders</text>
+  <text x="325" y="404" class="s" text-anchor="middle">weighted target groups</text>
+  <text x="325" y="422" class="s" text-anchor="middle">blue / green</text>
+
+  <!-- EKS cluster boundary -->
+  <rect x="460" y="100" width="820" height="630" rx="14" fill="#FBFDF8" stroke="#3B6D11" stroke-width="1.6" stroke-dasharray="8 5"/>
+  <text x="482" y="130" font-size="14" font-weight="700" fill="#27500A">Amazon EKS cluster · namespace shop</text>
+  <text x="1262" y="130" class="s" text-anchor="end">identical in cm-blue and cm-green</text>
+
+  <!-- catalog-svc (stateless) -->
+  <rect x="490" y="160" width="220" height="100" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="1.5"/>
+  <text x="600" y="186" class="t" text-anchor="middle">catalog-svc</text>
+  <text x="600" y="207" class="b" text-anchor="middle">Stateless REST API · FastAPI</text>
+  <text x="600" y="227" class="b" text-anchor="middle">GET /api/catalog/products</text>
+  <text x="600" y="247" class="s" text-anchor="middle">2 replicas · no database</text>
+
+  <!-- orders-svc (stateful) -->
+  <rect x="490" y="320" width="220" height="130" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.5"/>
+  <text x="600" y="346" class="t" text-anchor="middle">orders-svc</text>
+  <text x="600" y="367" class="b" text-anchor="middle">Stateful REST API · FastAPI</text>
+  <text x="600" y="388" class="b" text-anchor="middle">POST /api/orders</text>
+  <text x="600" y="405" class="s" text-anchor="middle">(Idempotency-Key header)</text>
+  <text x="600" y="424" class="b" text-anchor="middle">GET /api/orders/{id}</text>
+  <text x="600" y="442" class="s" text-anchor="middle">2 replicas</text>
+
+  <!-- orders-db (cylinder) -->
+  <path d="M770,316 L770,456 A105,14 0 0 0 980,456 L980,316" fill="#FAEEDA" stroke="#854F0B" stroke-width="1.5"/>
+  <ellipse cx="875" cy="316" rx="105" ry="14" fill="#FAEEDA" stroke="#854F0B" stroke-width="1.5"/>
+  <text x="875" y="352" class="t" text-anchor="middle">orders-db</text>
+  <text x="875" y="373" class="b" text-anchor="middle">PostgreSQL · CloudNativePG</text>
+  <text x="875" y="393" class="b" text-anchor="middle">2 instances (primary + standby)</text>
+  <text x="875" y="413" class="s" text-anchor="middle">owned by the orders domain</text>
+  <text x="875" y="431" class="s" text-anchor="middle">WAL archived to S3</text>
+
+  <!-- order-sweeper (singleton CronJob) -->
+  <rect x="1040" y="160" width="210" height="90" rx="10" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.5"/>
+  <text x="1145" y="185" class="t" text-anchor="middle">order-sweeper</text>
+  <text x="1145" y="205" class="b" text-anchor="middle">CronJob · every 2 min</text>
+  <text x="1145" y="224" class="s" text-anchor="middle">re-publishes stuck orders</text>
+  <text x="1145" y="241" class="s" text-anchor="middle">one run per slot (claim)</text>
+
+  <!-- lease-agent -->
+  <rect x="1040" y="320" width="210" height="90" rx="10" fill="#ffffff" stroke="#534AB7" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="1145" y="345" class="t" text-anchor="middle">lease-agent</text>
+  <text x="1145" y="365" class="s" text-anchor="middle">ClusterMotion component</text>
+  <text x="1145" y="383" class="b" text-anchor="middle">turns singletons on/off</text>
+  <text x="1145" y="400" class="b" text-anchor="middle">in exactly one cluster</text>
+
+  <!-- fulfillment-worker (singleton consumer) -->
+  <rect x="1040" y="500" width="210" height="110" rx="10" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.5"/>
+  <text x="1145" y="526" class="t" text-anchor="middle">fulfillment-worker</text>
+  <text x="1145" y="547" class="b" text-anchor="middle">Queue consumer · singleton</text>
+  <text x="1145" y="567" class="b" text-anchor="middle">KEDA: 1–3 pods on queue depth</text>
+  <text x="1145" y="587" class="s" text-anchor="middle">idempotent UPDATE</text>
+
+  <!-- AWS managed: DynamoDB, SQS -->
+  <rect x="1320" y="320" width="210" height="90" rx="10" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1.5"/>
+  <text x="1425" y="346" class="t" text-anchor="middle">Amazon DynamoDB</text>
+  <text x="1425" y="367" class="b" text-anchor="middle">singleton lease</text>
+  <text x="1425" y="386" class="s" text-anchor="middle">holder · desired · heartbeat</text>
+
+  <rect x="1320" y="500" width="210" height="100" rx="10" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1.5"/>
+  <text x="1425" y="527" class="t" text-anchor="middle">Amazon SQS</text>
+  <text x="1425" y="548" class="b" text-anchor="middle">orders queue + DLQ</text>
+  <text x="1425" y="567" class="s" text-anchor="middle">order-created events</text>
+
+  <!-- flows -->
+  <line class="flow" x1="190" y1="355" x2="228" y2="355"/>
+  <text x="209" y="345" class="lbl" text-anchor="middle">HTTP</text>
+
+  <line class="flow" x1="420" y1="300" x2="488" y2="212"/>
+  <line class="flow" x1="420" y1="395" x2="488" y2="385"/>
+
+  <line class="flow" x1="710" y1="385" x2="768" y2="385"/>
+  <text x="739" y="377" class="lbl" text-anchor="middle">SQL</text>
+
+  <polyline class="flow" points="600,450 600,765 1425,765 1425,602"/>
+  <text x="1010" y="757" class="lbl" text-anchor="middle">publish order-created event</text>
+
+  <line class="flow" x1="1320" y1="545" x2="1252" y2="545"/>
+
+  <polyline class="flow" points="1040,578 875,578 875,472"/>
+  <text x="958" y="570" class="lbl" text-anchor="middle">SQL: mark FULFILLED</text>
+
+  <polyline class="flow" points="1040,205 1010,205 1010,340 982,340"/>
+  <text x="1025" y="197" class="lbl" text-anchor="middle">SQL</text>
+
+  <line class="flow" x1="1250" y1="365" x2="1318" y2="365"/>
+
+  <!-- lease-agent control (dashed) -->
+  <line class="control" x1="1145" y1="320" x2="1145" y2="252"/>
+  <text x="1153" y="290" class="ctl">suspend / resume</text>
+  <line class="control" x1="1145" y1="410" x2="1145" y2="498"/>
+  <text x="1153" y="458" class="ctl">pause / resume</text>
+
+  <!-- supporting shared services -->
+  <text x="460" y="812" font-size="13.5" font-weight="700" fill="#1f1f1d">Shared AWS services used by the shop (outside the cluster, survive every migration)</text>
+  <g>
+    <rect x="460" y="826" width="200" height="72" rx="8" fill="#F1EFE8" stroke="#5F5E5A"/>
+    <text x="560" y="849" class="t" text-anchor="middle" font-size="13.5">Amazon S3</text>
+    <text x="560" y="869" class="s" text-anchor="middle">WAL archive + base backups</text>
+    <text x="560" y="886" class="s" text-anchor="middle">of orders-db</text>
+
+    <rect x="675" y="826" width="200" height="72" rx="8" fill="#F1EFE8" stroke="#5F5E5A"/>
+    <text x="775" y="849" class="t" text-anchor="middle" font-size="13.5">Route 53 (private)</text>
+    <text x="775" y="869" class="s" text-anchor="middle">db.clustermotion.internal</text>
+    <text x="775" y="886" class="s" text-anchor="middle">points to the DB primary</text>
+
+    <rect x="890" y="826" width="200" height="72" rx="8" fill="#F1EFE8" stroke="#5F5E5A"/>
+    <text x="990" y="849" class="t" text-anchor="middle" font-size="13.5">Secrets Manager</text>
+    <text x="990" y="869" class="s" text-anchor="middle">database credentials</text>
+    <text x="990" y="886" class="s" text-anchor="middle">seeded by cm register</text>
+
+    <rect x="1105" y="826" width="200" height="72" rx="8" fill="#F1EFE8" stroke="#5F5E5A"/>
+    <text x="1205" y="849" class="t" text-anchor="middle" font-size="13.5">Amazon ECR</text>
+    <text x="1205" y="869" class="s" text-anchor="middle">catalog · orders</text>
+    <text x="1205" y="886" class="s" text-anchor="middle">fulfillment · engine images</text>
+
+    <rect x="1320" y="826" width="210" height="72" rx="8" fill="#F1EFE8" stroke="#5F5E5A"/>
+    <text x="1425" y="849" class="t" text-anchor="middle" font-size="13.5">Amazon CloudWatch</text>
+    <text x="1425" y="869" class="s" text-anchor="middle">ALB metrics per target group</text>
+    <text x="1425" y="886" class="s" text-anchor="middle">used by the SLO gates</text>
+  </g>
+
+  <!-- legend -->
+  <g font-size="12" fill="#3d3d3a">
+    <rect x="30" y="928" width="16" height="16" rx="3" fill="#E6F1FB" stroke="#185FA5"/>
+    <text x="54" y="941">Stateless microservice</text>
+    <rect x="220" y="928" width="16" height="16" rx="3" fill="#E1F5EE" stroke="#0F6E56"/>
+    <text x="244" y="941">Stateful microservice</text>
+    <rect x="405" y="928" width="16" height="16" rx="3" fill="#EEEDFE" stroke="#534AB7"/>
+    <text x="429" y="941">Singleton (runs in one cluster only)</text>
+    <rect x="660" y="928" width="16" height="16" rx="3" fill="#FAEEDA" stroke="#854F0B"/>
+    <text x="684" y="941">Database</text>
+    <rect x="775" y="928" width="16" height="16" rx="3" fill="#F1EFE8" stroke="#5F5E5A"/>
+    <text x="799" y="941">AWS managed service</text>
+    <line x1="960" y1="936" x2="1000" y2="936" stroke="#3d3d3a" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <text x="1008" y="941">data / request flow</text>
+    <line x1="1150" y1="936" x2="1190" y2="936" stroke="#534AB7" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow-ctl)"/>
+    <text x="1198" y="941">control (lease agent)</text>
+  </g>
+</svg>

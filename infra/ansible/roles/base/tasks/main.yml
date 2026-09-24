@@ -1,0 +1,20 @@
+- name: Install OS packages
+  ansible.builtin.apt:
+    name: [git, jq, curl, unzip, python3-venv, python3-pip, chrony, postgresql-client]
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable time sync (lease heartbeats and reports rely on clocks)
+  ansible.builtin.service:
+    name: chrony
+    state: started
+    enabled: true
+
+- name: Install AWS CLI v2
+  ansible.builtin.shell: |
+    set -e
+    curl -sSfL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip
+    unzip -qo /tmp/awscliv2.zip -d /tmp
+    /tmp/aws/install --update
+  args:
+    creates: /usr/local/bin/aws

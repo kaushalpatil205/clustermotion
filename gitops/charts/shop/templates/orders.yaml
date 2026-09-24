@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  labels:
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.orders.replicas }}
+  selector:
+    matchLabels: {app: orders}
+  template:
+    metadata:
+      labels:
+        app: orders
+        {{- include "shop.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: orders
+      containers:
+        - name: orders
+          image: {{ include "shop.image" (dict "root" . "name" "orders") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{containerPort: 8000, name: http}]
+          env:
+            {{- include "shop.awsEnv" . | nindent 12 }}
+            {{- include "shop.dbEnv" . | nindent 12 }}
+            - {name: QUEUE_URL, value: {{ .Values.queueUrl | quote }}}
+          readinessProbe:
+            httpGet: {path: /api/orders/healthz, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /api/orders/healthz, port: http}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 384Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders
+  labels:
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  selector: {app: orders}
+  ports: [{port: 80, targetPort: http, name: http}]
+---
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  name: orders
+  labels:
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  serviceRef: {name: orders, port: 80}
+  targetGroupARN: {{ .Values.targetGroups.orders }}
+  targetType: ip
+  networking:
+    ingress:
+      - from:
+          - securityGroup: {groupID: {{ .Values.albSecurityGroupId }}}
+        ports:
+          - {port: 8000, protocol: TCP}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orders
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: orders}

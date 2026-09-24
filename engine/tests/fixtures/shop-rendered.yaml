@@ -1,0 +1,61 @@
+# Trimmed `helm template` output of the shop chart plus one "legacy" workload.
+apiVersion: v1
+kind: Service
+metadata: {name: catalog, namespace: shop}
+spec: {selector: {app: catalog}, ports: [{port: 80, targetPort: 8000}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: catalog, namespace: shop}
+spec:
+  selector: {matchLabels: {app: catalog}}
+  template: {metadata: {labels: {app: catalog}}, spec: {containers: [{name: catalog, image: x}]}}
+---
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata: {name: catalog, namespace: shop}
+spec: {serviceRef: {name: catalog, port: 80}, targetGroupARN: arn:x, targetType: ip}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: fulfillment-worker, namespace: shop}
+spec:
+  selector: {matchLabels: {app: fulfillment-worker}}
+  template: {metadata: {labels: {app: fulfillment-worker}}, spec: {containers: [{name: w, image: x}]}}
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata: {name: fulfillment-worker, namespace: shop, labels: {clustermotion.io/class: singleton}}
+spec: {scaleTargetRef: {name: fulfillment-worker}}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: {name: order-sweeper, namespace: shop, labels: {clustermotion.io/class: singleton}}
+spec: {schedule: "*/2 * * * *", jobTemplate: {spec: {template: {spec: {containers: []}}}}}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata: {name: orders-db-blue, namespace: shop}
+spec: {instances: 1}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: lease-agent, namespace: shop, labels: {app.kubernetes.io/part-of: clustermotion}}
+spec:
+  selector: {matchLabels: {app: lease-agent}}
+  template: {metadata: {labels: {app: lease-agent}}, spec: {containers: []}}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: legacy-redis, namespace: shop}
+spec:
+  selector: {matchLabels: {app: legacy-redis}}
+  template: {metadata: {labels: {app: legacy-redis}}, spec: {containers: []}}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec: {resources: {requests: {storage: 8Gi}}}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: {name: unlabelled-report, namespace: shop}
+spec: {schedule: "0 * * * *", jobTemplate: {spec: {template: {spec: {containers: []}}}}}

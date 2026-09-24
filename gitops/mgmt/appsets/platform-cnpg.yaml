@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cnpg
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clustermotion.io/workload: "true"
+  template:
+    metadata:
+      name: 'cnpg-{{ index .metadata.labels "clustermotion.io/color" }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://cloudnative-pg.github.io/charts
+        chart: cloudnative-pg
+        targetRevision: 0.29.0          # operator 1.30.0
+      destination:
+        server: '{{ .server }}'
+        namespace: cnpg-system
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry: {limit: 10, backoff: {duration: 15s, factor: 2, maxDuration: 5m}}

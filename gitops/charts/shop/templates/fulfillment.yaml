@@ -1,0 +1,62 @@
+# Singleton consumer. Created PAUSED at 0 replicas in every cluster;
+# the lease agent un-pauses it only in the cluster holding the lease.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fulfillment-worker
+  labels:
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels: {app: fulfillment-worker}
+  template:
+    metadata:
+      labels:
+        app: fulfillment-worker
+        {{- include "shop.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: fulfillment-worker
+      terminationGracePeriodSeconds: 60   # finish in-flight messages on SIGTERM
+      containers:
+        - name: worker
+          image: {{ include "shop.image" (dict "root" . "name" "fulfillment") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- include "shop.awsEnv" . | nindent 12 }}
+            {{- include "shop.dbEnv" . | nindent 12 }}
+            - {name: QUEUE_URL, value: {{ .Values.queueUrl | quote }}}
+            - {name: LEASE_TABLE, value: {{ .Values.leaseTable | quote }}}
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {memory: 256Mi}
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-aws
+spec:
+  podIdentity:
+    provider: aws          # KEDA operator's own Pod Identity (keda/keda-operator)
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: fulfillment-worker
+  labels:
+    clustermotion.io/class: singleton
+    {{- include "shop.labels" . | nindent 4 }}
+  annotations:
+    autoscaling.keda.sh/paused-replicas: "0"
+spec:
+  scaleTargetRef:
+    name: fulfillment-worker
+  minReplicaCount: {{ .Values.fulfillment.minReplicas }}
+  maxReplicaCount: {{ .Values.fulfillment.maxReplicas }}
+  cooldownPeriod: 60
+  triggers:
+    - type: aws-sqs-queue
+      authenticationRef: {name: keda-aws}
+      metadata:
+        queueURL: {{ .Values.queueUrl | quote }}
+        queueLength: {{ .Values.fulfillment.queueLength | quote }}
+        awsRegion: {{ .Values.awsRegion | quote }}

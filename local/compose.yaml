@@ -1,0 +1,86 @@
+name: clustermotion-local
+
+x-aws-env: &aws-env
+  AWS_REGION: us-east-1
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: local
+  AWS_SECRET_ACCESS_KEY: local
+  AWS_ENDPOINT_URL_SQS: http://sqs:9324
+  AWS_ENDPOINT_URL_DYNAMODB: http://dynamodb:8000
+
+x-db-env: &db-env
+  DB_HOST: postgres
+  DB_NAME: shop
+  DB_USER: shop
+  DB_PASSWORD: shop
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: shop
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: shop
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shop -d shop"]
+      interval: 2s
+      retries: 30
+
+  sqs:
+    image: softwaremill/elasticmq-native:1.7.1
+    volumes: ["./elasticmq.conf:/opt/elasticmq.conf:ro"]
+    ports: ["9324:9324"]
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    ports: ["8001:8000"]
+
+  lease-init:
+    build: { context: ../services, dockerfile: orders/Dockerfile }
+    environment:
+      <<: *aws-env
+      LEASE_TABLE: clustermotion-leases
+      LEASE_HOLDER: local
+    volumes: ["./init_lease.py:/srv/init_lease.py:ro"]
+    command: ["python", "/srv/init_lease.py"]
+    depends_on: [dynamodb]
+
+  catalog:
+    build: { context: ../services, dockerfile: catalog/Dockerfile }
+    environment: { CLUSTER_NAME: local }
+    ports: ["8081:8000"]
+
+  orders:
+    build: { context: ../services, dockerfile: orders/Dockerfile }
+    environment:
+      <<: [*aws-env, *db-env]
+      CLUSTER_NAME: local
+      QUEUE_URL: http://sqs:9324/000000000000/orders
+    ports: ["8082:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      sqs: { condition: service_started }
+
+  fulfillment:
+    build: { context: ../services, dockerfile: fulfillment/Dockerfile }
+    environment:
+      <<: [*aws-env, *db-env]
+      CLUSTER_NAME: local
+      QUEUE_URL: http://sqs:9324/000000000000/orders
+      LEASE_TABLE: clustermotion-leases
+    depends_on:
+      orders: { condition: service_started }
+      lease-init: { condition: service_completed_successfully }
+
+  sweeper:  # run on demand: docker compose run --rm sweeper
+    build: { context: ../services, dockerfile: orders/Dockerfile }
+    profiles: ["jobs"]
+    environment:
+      <<: [*aws-env, *db-env]
+      CLUSTER_NAME: local
+      QUEUE_URL: http://sqs:9324/000000000000/orders
+      LEASE_TABLE: clustermotion-leases
+      SWEEPER_STALE_SECONDS: "5"
+    command: ["python", "-m", "app.sweeper"]

@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: keda
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clustermotion.io/workload: "true"
+  template:
+    metadata:
+      name: 'keda-{{ index .metadata.labels "clustermotion.io/color" }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://kedacore.github.io/charts
+        chart: keda
+        targetRevision: 2.20.2
+      destination:
+        server: '{{ .server }}'
+        namespace: keda
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry: {limit: 10, backoff: {duration: 15s, factor: 2, maxDuration: 5m}}

@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: aws-lbc
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clustermotion.io/workload: "true"
+  template:
+    metadata:
+      name: 'aws-lbc-{{ index .metadata.labels "clustermotion.io/color" }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://aws.github.io/eks-charts
+        chart: aws-load-balancer-controller
+        targetRevision: 3.5.0
+        helm:
+          valuesObject:
+            clusterName: '{{ index .metadata.annotations "clustermotion.io/cluster-name" }}'
+            region: '{{ index .metadata.annotations "clustermotion.io/aws-region" }}'
+            vpcId: '{{ index .metadata.annotations "clustermotion.io/vpc-id" }}'
+            serviceAccount:
+              create: true
+              name: aws-load-balancer-controller   # Pod Identity association (Terraform)
+      destination:
+        server: '{{ .server }}'
+        namespace: kube-system
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        syncOptions: [ServerSideApply=true]
+        retry: {limit: 10, backoff: {duration: 15s, factor: 2, maxDuration: 5m}}

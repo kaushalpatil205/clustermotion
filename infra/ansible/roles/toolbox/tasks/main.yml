@@ -1,0 +1,41 @@
+- name: Clone the repository
+  ansible.builtin.git:
+    repo: "{{ repo_url }}"
+    dest: "{{ engine_dir }}"
+    version: "{{ repo_branch }}"
+    force: true
+
+- name: Engine virtualenv with `cm`
+  ansible.builtin.pip:
+    name: "{{ engine_dir }}/engine"
+    virtualenv: /opt/cm-venv
+    virtualenv_command: python3 -m venv
+
+- name: Put cm on the PATH
+  ansible.builtin.file:
+    src: /opt/cm-venv/bin/cm
+    dest: /usr/local/bin/cm
+    state: link
+
+- name: Install k6 (load generator)
+  ansible.builtin.unarchive:
+    src: "https://github.com/grafana/k6/releases/download/{{ k6_version }}/k6-{{ k6_version }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+    extra_opts: [--strip-components=1, --wildcards, "*/k6"]
+    creates: /usr/local/bin/k6
+
+- name: Engine config location
+  ansible.builtin.file:
+    path: /etc/clustermotion
+    state: directory
+    mode: "0755"
+
+- name: Default engine config path and mgmt context for every shell
+  ansible.builtin.copy:
+    dest: /etc/profile.d/clustermotion.sh
+    mode: "0644"
+    content: |
+      export CM_CONFIG=/etc/clustermotion/config.json
+      export CM_MGMT_CONTEXT=cm-mgmt
+      export AWS_REGION={{ lookup('env', 'AWS_REGION') | default('us-east-1', true) }}

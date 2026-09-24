@@ -1,0 +1,9 @@
+k3s_version: v1.36.4+k3s1
+ecr_credential_provider_version: v1.37.0
+k6_version: v2.3.0
+argocd_chart_version: 10.9.2
+argo_workflows_chart_version: 2.0.8
+repo_url: https://github.com/YOUR_GITHUB_USER/clustermotion.git
+repo_branch: main
+engine_dir: /opt/clustermotion
+kubeconfig_local_path: "{{ lookup('env', 'HOME') }}/.kube/clustermotion-mgmt.yaml"

@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: shop
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clustermotion.io/workload: "true"
+  template:
+    metadata:
+      name: 'shop-{{ index .metadata.labels "clustermotion.io/color" }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/YOUR_GITHUB_USER/clustermotion.git
+        targetRevision: main
+        path: gitops/charts/shop
+        helm:
+          valueFiles:
+            - values.yaml
+            - 'values-{{ index .metadata.labels "clustermotion.io/color" }}.yaml'
+          ignoreMissingValueFiles: true
+          valuesObject:
+            color: '{{ index .metadata.labels "clustermotion.io/color" }}'
+            awsRegion: '{{ index .metadata.annotations "clustermotion.io/aws-region" }}'
+            vpcCidr: '{{ index .metadata.annotations "clustermotion.io/vpc-cidr" }}'
+            albSecurityGroupId: '{{ index .metadata.annotations "clustermotion.io/alb-sg" }}'
+            queueUrl: '{{ index .metadata.annotations "clustermotion.io/queue-url" }}'
+            leaseTable: '{{ index .metadata.annotations "clustermotion.io/lease-table" }}'
+            image:
+              registry: '{{ index .metadata.annotations "clustermotion.io/image-registry" }}'
+            targetGroups:
+              catalog: '{{ index .metadata.annotations "clustermotion.io/tg-catalog" }}'
+              orders: '{{ index .metadata.annotations "clustermotion.io/tg-orders" }}'
+            db:
+              host: '{{ index .metadata.annotations "clustermotion.io/db-host" }}'
+              primary: '{{ index .metadata.annotations "clustermotion.io/db-primary" }}'
+              walBucket: '{{ index .metadata.annotations "clustermotion.io/wal-bucket" }}'
+      destination:
+        server: '{{ .server }}'
+        namespace: shop
+      ignoreDifferences:
+        - group: batch
+          kind: CronJob
+          jsonPointers: [/spec/suspend]
+        - group: keda.sh
+          kind: ScaledObject
+          jsonPointers: [/metadata/annotations/autoscaling.keda.sh~1paused-replicas]
+        - group: postgresql.cnpg.io
+          kind: Cluster
+          jsonPointers: [/spec/replica, /spec/bootstrap]
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        syncOptions:
+          - CreateNamespace=true
+          - RespectIgnoreDifferences=true
+          - SkipDryRunOnMissingResource=true
+        retry: {limit: 20, backoff: {duration: 20s, factor: 2, maxDuration: 5m}}

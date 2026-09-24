@@ -1,0 +1,91 @@
+{{- $self := printf "orders-db-%s" .Values.color }}
+{{- $primary := printf "orders-db-%s" .Values.db.primary }}
+{{- $other := printf "orders-db-%s" (include "shop.otherColor" .) }}
+{{- $isPrimary := eq .Values.color .Values.db.primary }}
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: wal-store
+spec:
+  retentionPolicy: "7d"
+  configuration:
+    destinationPath: s3://{{ .Values.db.walBucket }}/
+    s3Credentials:
+      inheritFromIAMRole: true      # Pod Identity on service account {{ $self }}
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ $self }}
+  labels:
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.db.instances }}
+  storage:
+    size: {{ .Values.db.storageSize }}
+    storageClass: gp3
+  postgresql:
+    parameters:
+      archive_timeout: "60s"        # bounds replica lag when writes are idle
+  bootstrap:
+  {{- if $isPrimary }}
+    initdb:
+      database: {{ .Values.db.name }}
+      owner: shop
+      secret: {name: orders-db-credentials}
+  {{- else }}
+    recovery:
+      source: {{ $primary }}
+  {{- end }}
+  replica:
+    primary: {{ $primary }}
+    source: {{ if $isPrimary }}{{ $other }}{{ else }}{{ $primary }}{{ end }}
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: wal-store
+        serverName: {{ $self }}
+  externalClusters:
+  {{- range $c := list "blue" "green" }}
+    - name: orders-db-{{ $c }}
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: wal-store
+          serverName: orders-db-{{ $c }}
+  {{- end }}
+  managed:
+    services:
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: orders-db-lb
+              annotations:
+                service.beta.kubernetes.io/aws-load-balancer-type: external
+                service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+                service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+            spec:
+              type: LoadBalancer
+              loadBalancerSourceRanges: [{{ .Values.vpcCidr | quote }}]
+{{- if $isPrimary }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ $self }}-daily
+spec:
+  schedule: "0 0 3 * * *"           # six fields: CloudNativePG cron includes seconds
+  immediate: true                   # first base backup right away: green bootstraps from it
+  backupOwnerReference: self
+  cluster:
+    name: {{ $self }}
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+{{- end }}

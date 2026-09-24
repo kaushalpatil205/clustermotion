@@ -1,0 +1,28 @@
+- name: Namespaces
+  ansible.builtin.command: "k3s kubectl create namespace {{ item }}"
+  loop: [argocd, argo]
+  register: ns
+  changed_when: ns.rc == 0
+  failed_when: ns.rc != 0 and 'AlreadyExists' not in ns.stderr
+
+- name: Argo CD and Argo Workflows via the k3s Helm controller
+  ansible.builtin.template:
+    src: "{{ item }}.yaml.j2"
+    dest: "/var/lib/rancher/k3s/server/manifests/{{ item }}.yaml"
+    mode: "0600"
+  loop: [argocd, argo-workflows]
+
+- name: Wait for Argo CD
+  ansible.builtin.command: >
+    k3s kubectl -n argocd rollout status deploy/argocd-server --timeout=600s
+  register: rollout
+  retries: 10
+  delay: 15
+  until: rollout.rc == 0
+  changed_when: false
+
+- name: Root application (app-of-apps pointing at gitops/mgmt)
+  ansible.builtin.template:
+    src: root-app.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/zz-root-app.yaml
+    mode: "0600"
