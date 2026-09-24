@@ -76,7 +76,7 @@ It is API-only (no UI). Traffic comes from a k6 load generator that simulates cu
 **How the services talk to each other**
 
 - **Synchronous:** clients call `catalog-svc` and `orders-svc` over HTTP through the shared ALB. The services never call each other directly.
-- **Asynchronous:** `orders-svc` → **SQS** → `fulfillment-worker`, which is event-driven.
+- **Asynchronous:** `orders-svc` -> **SQS** -> `fulfillment-worker`, which is event-driven.
 - **Data ownership:** *database per service*. `catalog-svc` has no database. `orders-db` belongs to the orders domain: the worker and sweeper are part of the same bounded context, so they share it.
 
 ![Shop microservices architecture](docs/images/shop-architecture.svg)
@@ -107,7 +107,7 @@ The full comparison, and the full source code of all services, are in [docs/02-s
 - **Cost.** EKS gives each version 14 months of standard support. After that, clusters are enrolled in extended support automatically, at **$0.60/hr instead of $0.10/hr**. That is 6x the price, about $4,380 more per cluster per year ([AWS](https://aws.amazon.com/blogs/containers/amazon-eks-extended-support-for-kubernetes-versions-pricing/)). For example, EKS 1.34 leaves standard support on **Dec 2, 2026** ([endoflife.date](https://endoflife.date/amazon-eks)).
 - **Effort.** In-place upgrades go **one minor version at a time**. One industry estimate puts each minor upgrade of a mid-size EKS setup at 4–6 weeks of engineering work ([bex.co](https://bex.co/blog/2026/07/10/eks-133-extended-support-cluster-api-upgrade)).
 - **Limited rollback.** EKS rollback (July 2026) is limited to 7 days, one version back, in-place upgrades only, and no Fargate ([AWS](https://aws.amazon.com/blogs/containers/announcing-amazon-eks-rollback-for-safe-and-reliable-management-of-cluster-upgrades/)).
-- **Settings that can't change in place.** Some cluster settings can never be changed in place, such as the IP family (IPv4 → IPv6) ([AWS docs](https://docs.aws.amazon.com/eks/latest/userguide/cni-ipv6.html)). Changing them requires a new cluster.
+- **Settings that can't change in place.** Some cluster settings can never be changed in place, such as the IP family (IPv4 -> IPv6) ([AWS docs](https://docs.aws.amazon.com/eks/latest/userguide/cni-ipv6.html)). Changing them requires a new cluster.
 
 ### 2.2 Blue/green cluster migration exists, but skips the hard parts
 
@@ -195,7 +195,7 @@ flowchart TB
 |---|---|---|---|
 | Stateless HTTP | `catalog` | traffic-shift (ALB weights) | none |
 | Stateful HTTP | `orders` | traffic-shift; writes are idempotent (`Idempotency-Key`) | none (clients retry briefly during the DB switchover) |
-| Database | `orders-db` | db-switchover (replica → demote → promote → DNS flip) | a few seconds of write pause, measured |
+| Database | `orders-db` | db-switchover (replica -> demote -> promote -> DNS flip) | a few seconds of write pause, measured |
 | Queue consumer | `fulfillment-worker` | lease-handoff (KEDA paused outside the lease holder) | none |
 | Scheduled job | `order-sweeper` | lease-handoff (CronJob suspended outside the lease holder) | none |
 | PVC without replication | any legacy StatefulSet | snapshot-restore, **needs approval** | estimated by the planner |
@@ -217,7 +217,7 @@ sequenceDiagram
     WF->>WF: preflight + plan
     WF->>ALB: smoke tests via X-CM-Target: green
     WF->>ALB: shadow replay (real GETs, blue x2 vs green x1)
-    loop 5% → 25% → 50% → 100% (per service)
+    loop 5% -> 25% -> 50% -> 100% (per service)
         WF->>ALB: set weights
         WF->>WF: CloudWatch SLO check (5xx, p95)
         alt SLO breached
@@ -226,10 +226,10 @@ sequenceDiagram
     end
     WF->>Op: suspend: approve DB switchover?
     Op->>WF: argo resume
-    WF->>DB: demote blue → token → promote green → Route 53 flip
-    WF->>L: desired = green → blue drains → green acquires
+    WF->>DB: demote blue -> token -> promote green -> Route 53 flip
+    WF->>L: desired = green -> blue drains -> green acquires
     WF->>WF: post-checks + report
-    Op->>Op: cm verify (reconciliation) → terraform destroy blue
+    Op->>Op: cm verify (reconciliation) -> terraform destroy blue
 ```
 
 ### 3.5 Safety and rollback
@@ -263,7 +263,7 @@ A k6 load test runs during the **entire** migration and logs every order the API
 
 ## 4. Technology stack
 
-AWS (EKS, ALB, SQS, DynamoDB, S3, Route 53, ECR, Secrets Manager, CloudWatch) · Terraform (AWS provider 6, EKS module 21) · Ansible · k3s · Argo CD 3.5 · Argo Workflows 4.1 · Kubernetes 1.34 → 1.36 · CloudNativePG 1.30 + Barman Cloud plugin · KEDA 2.20 · AWS Load Balancer Controller 3.5 · cert-manager 1.21 · Docker · Python 3.13 (FastAPI, psycopg 3, boto3, kubernetes client) · k6 · GitHub Actions (OIDC).
+AWS (EKS, ALB, SQS, DynamoDB, S3, Route 53, ECR, Secrets Manager, CloudWatch) · Terraform (AWS provider 6, EKS module 21) · Ansible · k3s · Argo CD 3.5 · Argo Workflows 4.1 · Kubernetes 1.34 -> 1.36 · CloudNativePG 1.30 + Barman Cloud plugin · KEDA 2.20 · AWS Load Balancer Controller 3.5 · cert-manager 1.21 · Docker · Python 3.13 (FastAPI, psycopg 3, boto3, kubernetes client) · k6 · GitHub Actions (OIDC).
 
 ## 5. Repository layout
 
