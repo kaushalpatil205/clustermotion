@@ -303,8 +303,3 @@ docker compose -f local/compose.yaml up --build -d
 
 The full AWS run (runbook) is listed as remaining work in [PROJECT-STATUS.md](docs/PROJECT-STATUS.md).
 
-## 7. Resume summary
-
-> Built **ClusterMotion**, a live-migration platform for Kubernetes clusters (Terraform, Ansible, Argo CD, Argo Workflows, CloudNativePG, KEDA, Python). It moves stateful production workloads between EKS clusters with a [X]s write pause, 0 lost or duplicated transactions across [N] requests, SLO-gated instant rollback, and exactly-once CronJobs and queue consumers. Covers version upgrades across several versions in one hop and changes EKS cannot make in place.
-
-*(Fill in X and N from your first measured run.)*
