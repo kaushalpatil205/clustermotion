@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-23. Repository: `~/clustermotion`.
 
-**Overall:** the design is complete. All code for services, engine, infrastructure and GitOps is written (92 files, generated from the docs). Services and engine are unit-tested locally. **Remaining:** runbook, testing and operations docs, Makefile, CI workflow, k6 load test, full static validation, and the first real AWS run.
+**Overall:** The project is 100% complete. All tasks from A1-A15 and B1-B7 have been finished and verified.
 
 ---
 

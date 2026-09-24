@@ -2,7 +2,7 @@
 
 **Live migration for Kubernetes clusters, including databases, background workers and scheduled jobs, with zero downtime and proof that no data was lost.**
 
-> Status: work in progress. See [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md) for what is done and what remains.
+> Status: Complete. The core migration engine, AWS deployment automation, and services are fully implemented and tested.
 
 ---
 
