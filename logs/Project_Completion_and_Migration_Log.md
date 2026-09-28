@@ -41,7 +41,7 @@ flowchart TD
     %% Database Sync
     DB_Blue -- 1. Writes WAL Logs --> S3
     S3 -- 2. Replicates --> DB_Green
-    DB_Blue -. 3. Switchover .-> DB_Green
+    DB_Blue -. "3. Switchover" .-> DB_Green
 
     %% Leases
     Worker_Blue -. "Relinquishes Lock" .-> DDB
