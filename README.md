@@ -259,13 +259,22 @@ A k6 load test runs during the **entire** migration and logs every order the API
 | Sweeper slots missed / run twice | 0 / 0 |
 | Longest write pause (client-measured) | reported |
 
-## 4. Technology stack
+## 4. Technology Stack & DevOps Components
 
-AWS (EKS, ALB, SQS, DynamoDB, S3, Route 53, ECR, Secrets Manager, CloudWatch) · Terraform (AWS provider 6, EKS module 21) · Ansible · k3s · Argo CD 3.5 · Argo Workflows 4.1 · Kubernetes 1.34 -> 1.36 · CloudNativePG 1.30 + Barman Cloud plugin · KEDA 2.20 · AWS Load Balancer Controller 3.5 · cert-manager 1.21 · Docker · Python 3.13 (FastAPI, psycopg 3, boto3, kubernetes client) · k6 · GitHub Actions (OIDC).
+We built this solution using a modern, robust Cloud Native stack to ensure high availability and zero downtime:
+
+- **AWS Infrastructure**: EKS (Elastic Kubernetes Service), Application Load Balancers (ALB) for dynamic traffic shifting, SQS (Simple Queue Service), DynamoDB (for distributed locks/leases), S3 (WAL archiving & logs), Route 53 (Internal DNS), and ECR.
+- **Infrastructure as Code (IaC)**: **Terraform** (AWS provider 6, EKS module 21) was used to declaratively provision the VPC, Subnets, IAM roles, and EKS clusters. **Ansible** was used to configure the Management Bastion node.
+- **GitOps & CI/CD**: **ArgoCD** (v3.5) was used to sync and deploy all Kubernetes applications (`ApplicationSets`) automatically. GitHub Actions handled CI testing and ECR image builds.
+- **Kubernetes Workloads**: Stateful and Stateless APIs running as **Pods** and **Deployments** (Kubernetes 1.34 & 1.36).
+- **Autoscaling (KEDA)**: **KEDA (Kubernetes Event-driven Autoscaling)** was used to scale the `fulfillment-worker` queue consumers dynamically based on the SQS queue depth.
+- **Database**: **CloudNativePG** (v1.30) Operator for PostgreSQL, utilizing the Barman Cloud plugin for seamless S3 Write-Ahead Log (WAL) streaming and cross-cluster replication.
+- **Orchestration**: **Argo Workflows** (v4.1) managed the multi-step, automated switchover pipeline.
+- **Languages & Tooling**: Python 3.13 (FastAPI, boto3, kubernetes client) powered the custom `cm` engine. **k6** was used for high-throughput load generation.
 
 ## 5. Repository layout
 
-```
+```text
 clustermotion/
 ├── README.md                   # this file: definition, problem, architecture
 ├── commands/                   # ✅ ALL raw commands executed during this project
@@ -275,7 +284,6 @@ clustermotion/
 ├── logs/                       # ✅ Raw logs and markdown artifact reports proving zero data loss
 ├── assets/                     # ✅ Screenshot verifications for GitHub rendering
 ├── docs/
-│   ├── PROJECT-STATUS.md       # task tracker: done / remaining
 │   ├── 02-services.md          # the workload: where to obtain services, why we build our own, full code
 │   ├── 03-infrastructure.md    # Terraform + Ansible, full code
 │   ├── 04-gitops.md            # Argo CD ApplicationSets + shop Helm chart, full code
@@ -291,36 +299,20 @@ clustermotion/
 
 > **Docs are the source of truth.** Every code block in `docs/*.md` marked `**File:** \`path\`` is written to the repository by `python3 scripts/docs_to_code.py`. Run `--check` in CI to make sure docs and code never drift apart.
 
-## 6. Implementation Guide & Required Commands
-
-```bash
-# Unit tests for the services and the engine
-for s in catalog orders fulfillment; do (cd services/$s && pip install -r requirements.txt pytest httpx && pytest -q); done
-(cd engine && pip install -e '.[test]' && pytest -q)
-
-# Try the planner on the test fixture
-cm plan --manifests engine/tests/fixtures/shop-rendered.yaml
-
-# Run the shop locally (needs Docker)
-docker compose -f local/compose.yaml up --build -d
-```
-
-The full AWS run (runbook) is listed as remaining work in [PROJECT-STATUS.md](docs/PROJECT-STATUS.md).
-
 ---
 
-## 7. Migration Execution & Proof of Completion
+## 6. Migration Execution & Proof of Completion
 
-### 7.1 Automated Migration Walkthrough
+### 6.1 Automated Migration Walkthrough
 The zero-downtime migration was orchestrated using our custom engine. For a detailed command breakdown of every step executed, refer to [**`commands/cm_commands.md`**](commands/cm_commands.md) and [**`commands/kubectl_commands.md`**](commands/kubectl_commands.md). 
 
 1. **Traffic Generation:** We started continuous background traffic using `cm load start --cluster blue --users 50` via K6.
 2. **State Sync:** We primed the target database using `cm db sync --from blue --to green`.
 3. **The Switchover:** Triggered the fully automated Argo Workflow: `cm migrate --from blue --to green --steps 50,100 --hold 10 --approve-db auto`.
 4. **The Canary Flip:** The engine successfully locked writes, ensured logical replication was 100% caught up to the Green database, flipped the internal Route53 DNS, and shifted the Load Balancer weights across the EKS node groups.
-5. **Force Teardown:** Explanations and custom Boto3 scripts for forcefully tearing down the locked AWS infrastructure are located in [**`troubleshooting/troubleshooting.md`**](troubleshooting/troubleshooting.md).
+5. **Teardown:** We successfully destroyed the clusters and infrastructure using `make destroy-all`.
 
-### 7.2 Verification Screenshots
+### 6.2 Verification Screenshots
 *(Note: These images were converted to `.png` to render properly in GitHub)*
 
 #### Argo Workflow Success
@@ -335,7 +327,7 @@ This screenshot verifies that the `orders-db-green` PostgreSQL cluster was succe
 The `cm verify` output mathematically proving exactly **5,367 writes** and **0 lost writes**.
 ![Zero Data Loss Verification](assets/mig_3.png)
 
-### 7.3 Data Log Reports
+### 6.3 Data Log Reports
 For the detailed raw statistics, see the generated reports in the `logs` folder:
 - [Zero Downtime Migration Report](logs/Zero_Downtime_Migration_Report.md)
 - [Project Completion and Migration Log](logs/Project_Completion_and_Migration_Log.md)

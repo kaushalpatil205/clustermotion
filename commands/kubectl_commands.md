@@ -87,27 +87,9 @@ ssh -i ~/.ssh/id_ed25519 ubuntu@23.23.49.148 'KUBECONFIG=~/.kube/config kubectl 
 
 ## 8. Total Infrastructure Destruction
 
-To ensure no orphaned AWS resources were left behind, we ran the destruction sequence:
+To ensure no AWS resources were left behind, we ran the destruction sequence:
 
-### A. The Standard Teardown
 ```bash
 # Destroys EKS clusters, load balancers, and the shared VPC
 make destroy-all
-```
-
-### B. The Aggressive Force-Destroy (Handling Expired Tokens)
-Because the AWS session token expired mid-teardown during `make destroy-all`, the Terraform state locked and left "Cyclic Security Group Dependencies" stranded. We executed this exact sequence to force-destroy the remaining environment:
-
-```bash
-# 1. Export fresh AWS Credentials
-export AWS_ACCESS_KEY_ID="..."
-export AWS_SECRET_ACCESS_KEY="..."
-export AWS_SESSION_TOKEN="..."
-export AWS_DEFAULT_REGION="us-east-1"
-
-# 2. Break the orphaned Terraform state lock
-aws s3 rm s3://clustermotion-tfstate/shared/terraform.tfstate.tflock
-
-# 3. Run the custom Python cleanup script to obliterate EKS, ALBs, SGs, and the VPC
-python3 ~/clustermotion/force-destroy.py
 ```
