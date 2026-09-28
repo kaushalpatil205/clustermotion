@@ -15,6 +15,8 @@ clustermotion.io/color: {{ .Values.color }}
 {{- define "shop.awsEnv" -}}
 - name: AWS_REGION
   value: {{ .Values.awsRegion | quote }}
+- name: AWS_DEFAULT_REGION
+  value: {{ .Values.awsRegion | quote }}
 - name: CLUSTER_NAME
   value: {{ .Values.color | quote }}
 {{- end }}
