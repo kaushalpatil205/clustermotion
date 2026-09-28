@@ -1,0 +1,23 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: argo-cd
+  namespace: kube-system
+spec:
+  repo: https://argoproj.github.io/argo-helm
+  chart: argo-cd
+  version: "{{ argocd_chart_version }}"
+  targetNamespace: argocd
+  valuesContent: |-
+    configs:
+      params:
+        server.insecure: true          # reached only through an SSH tunnel
+      cm:
+        timeout.reconciliation: 60s
+    server:
+      service:
+        type: ClusterIP
+    dex:
+      enabled: false
+    notifications:
+      enabled: false

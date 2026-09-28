@@ -17,7 +17,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/kaushalpatil205/clustermotion.git
+        repoURL: https://github.com/YOUR_GITHUB_USER/clustermotion.git
         targetRevision: main
         path: gitops/charts/shop
         helm:

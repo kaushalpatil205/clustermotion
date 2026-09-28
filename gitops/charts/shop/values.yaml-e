@@ -1,0 +1,40 @@
+# Values marked (injected) are set by the ApplicationSet from the cluster secret.
+color: blue                     # (injected) blue | green
+awsRegion: us-east-1            # (injected)
+vpcCidr: 10.0.0.0/16            # (injected)
+albSecurityGroupId: sg-REPLACE  # (injected)
+queueUrl: https://sqs.us-east-1.amazonaws.com/111122223333/clustermotion-orders  # (injected)
+leaseTable: clustermotion-leases  # (injected)
+
+targetGroups:                   # (injected)
+  catalog: arn:aws:elasticloadbalancing:REPLACE
+  orders: arn:aws:elasticloadbalancing:REPLACE
+
+image:
+  registry: 111122223333.dkr.ecr.us-east-1.amazonaws.com  # (injected)
+  tag: latest                   # bumped by CI to the git SHA
+  pullPolicy: IfNotPresent
+
+db:
+  host: db.clustermotion.internal  # (injected) stable name, flipped at switchover
+  name: shop
+  primary: blue                 # (injected) colour holding the primary
+  instances: 2
+  storageSize: 5Gi
+  walBucket: clustermotion-wal-REPLACE  # (injected)
+
+catalog:
+  replicas: 2
+orders:
+  replicas: 2
+fulfillment:
+  minReplicas: 1
+  maxReplicas: 3
+  queueLength: "20"
+sweeper:
+  schedule: "*/2 * * * *"
+
+# Fault injection for the failure tests (set in values-<colour>.yaml)
+faults:
+  catalogErrorRate: "0"
+  catalogPriceBug: "false"

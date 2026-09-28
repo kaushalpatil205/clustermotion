@@ -1,0 +1,43 @@
+# Singleton CronJob. Created SUSPENDED in every cluster; the lease agent
+# un-suspends it only in the cluster holding the lease.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: order-sweeper
+  labels:
+    clustermotion.io/class: singleton
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.sweeper.schedule | quote }}
+  suspend: true
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 90       # a slot missed during handoff still runs (idempotent claim)
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        clustermotion.io/class: singleton
+        app: order-sweeper
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 100
+      template:
+        metadata:
+          labels: {app: order-sweeper}
+        spec:
+          serviceAccountName: order-sweeper
+          restartPolicy: Never
+          containers:
+            - name: sweeper
+              image: {{ include "shop.image" (dict "root" . "name" "orders") }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: [python, -m, app.sweeper]
+              env:
+                {{- include "shop.awsEnv" . | nindent 16 }}
+                {{- include "shop.dbEnv" . | nindent 16 }}
+                - {name: QUEUE_URL, value: {{ .Values.queueUrl | quote }}}
+                - {name: LEASE_TABLE, value: {{ .Values.leaseTable | quote }}}
+              resources:
+                requests: {cpu: 20m, memory: 64Mi}
+                limits: {memory: 192Mi}

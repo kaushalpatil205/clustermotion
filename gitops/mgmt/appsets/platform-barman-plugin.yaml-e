@@ -1,0 +1,31 @@
+# Barman Cloud plugin: WAL archiving + base backups to S3 for CloudNativePG.
+# Must live in the operator's namespace and needs cert-manager.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: barman-plugin
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            clustermotion.io/workload: "true"
+  template:
+    metadata:
+      name: 'barman-plugin-{{ index .metadata.labels "clustermotion.io/color" }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://cloudnative-pg.github.io/charts
+        chart: plugin-barman-cloud
+        targetRevision: 0.8.0           # plugin v0.15.0
+      destination:
+        server: '{{ .server }}'
+        namespace: cnpg-system
+      syncPolicy:
+        automated: {prune: true, selfHeal: true}
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry: {limit: 10, backoff: {duration: 30s, factor: 2, maxDuration: 5m}}

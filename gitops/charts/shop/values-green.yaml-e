@@ -1,0 +1,5 @@
+# Per-colour overrides for green. The failure tests (docs/07-testing.md)
+# temporarily uncomment one of these, push, and watch ClusterMotion react.
+faults:
+  catalogErrorRate: "0"        # test F1: "0.2" -> the SLO gate must roll back
+  catalogPriceBug: "false"     # test F2: "true" -> shadow replay must block

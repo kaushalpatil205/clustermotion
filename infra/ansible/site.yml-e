@@ -1,0 +1,8 @@
+- name: Configure the ClusterMotion management node
+  hosts: mgmt
+  become: true
+  roles:
+    - base
+    - k3s
+    - gitops
+    - toolbox

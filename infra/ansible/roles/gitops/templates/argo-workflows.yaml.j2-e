@@ -1,0 +1,15 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: argo-workflows
+  namespace: kube-system
+spec:
+  repo: https://argoproj.github.io/argo-helm
+  chart: argo-workflows
+  version: "{{ argo_workflows_chart_version }}"
+  targetNamespace: argo
+  valuesContent: |-
+    server:
+      authModes: [server]              # reached only through an SSH tunnel
+    controller:
+      workflowNamespaces: [argo]
