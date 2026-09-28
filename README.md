@@ -297,7 +297,6 @@ clustermotion/
 └── scripts/docs_to_code.py     # docs are the source of truth for the code
 ```
 
-> **Docs are the source of truth.** Every code block in `docs/*.md` marked `**File:** \`path\`` is written to the repository by `python3 scripts/docs_to_code.py`. Run `--check` in CI to make sure docs and code never drift apart.
 
 ---
 
