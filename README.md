@@ -271,6 +271,10 @@ We built this solution using a modern, robust Cloud Native stack to ensure high 
 - **Database**: **CloudNativePG** (v1.30) Operator for PostgreSQL, utilizing the Barman Cloud plugin for seamless S3 Write-Ahead Log (WAL) streaming and cross-cluster replication.
 - **Orchestration**: **Argo Workflows** (v4.1) managed the multi-step, automated switchover pipeline.
 - **Languages & Tooling**: Python 3.13 (FastAPI, boto3, kubernetes client) powered the custom `cm` engine. **k6** was used for high-throughput load generation.
+- **Build & Automation (Make)**: **GNU Make (`Makefile`)** was used as the primary execution wrapper for all major deployment commands. 
+  - **What it is**: Make is a build automation tool that builds executable programs and libraries from source code by reading files called `Makefiles`.
+  - **Why we used it**: We used it to abstract away long, complex Terraform, Ansible, and AWS CLI commands into simple, repeatable tasks. This reduced human error and standardized the execution pipeline.
+  - **How we used it**: We executed commands like `make bootstrap` (to set up VPCs and Bastion), `make cluster-up COLOR=blue` (to spin up an EKS cluster via Terraform), and `make destroy-all` (to tear everything down).
 
 ## 5. Repository layout
 
