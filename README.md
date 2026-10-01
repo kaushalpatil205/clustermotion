@@ -123,6 +123,8 @@ Blue/green cluster upgrades are a known pattern. They are described by [Fairwind
 AWS's own blog says blue/green upgrades take **1–2 months, compared with 2–4 weeks** for in-place upgrades. That extra time goes into exactly these manual, per-application steps. ClusterMotion automates them.
 
 > **What is actually new:** each building block already exists on its own (CloudNativePG switchover, ALB weighted target groups, Diffy, DynamoDB locks). What is new is **combining them into one planned, automated, reversible migration of a whole platform including state**, with measured proof.
+>
+> **Time Saved:** By fully automating this process, ClusterMotion reduces what is typically a **1–2 month manual migration effort** down to a **3-minute automated workflow**, saving hundreds of engineering hours per upgrade.
 
 ## 3. Architecture
 
